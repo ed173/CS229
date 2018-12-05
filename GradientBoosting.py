@@ -6,6 +6,7 @@ from sklearn import datasets
 from sklearn.metrics import confusion_matrix
 from sklearn.model_selection import GridSearchCV
 from sklearn.model_selection import RandomizedSearchCV
+from sklearn.metrics import f1_score
 
 
 def load_data_from_csv(file_name, header=0, encoding="utf-8"):
@@ -36,10 +37,6 @@ print(train_labels.shape)
 print(val_labels.shape)
 print(test_labels.shape)
 
-print("rate of 0: ", sum(train_labels[:, 0] == 0)/105000)
-print("rate of 1: ", sum(train_labels[:, 0] == 1)/105000)
-print("rate of -2: ", sum(train_labels[:, 0] == -2)/105000)
-print("rate of -1: ", sum(train_labels[:, 0] == -1)/105000)
 
 train_sentence_features = np.load("train_sentence_features.dat")
 val_sentence_features = np.load("val_sentence_features.dat")
@@ -51,42 +48,62 @@ print(test_sentence_features.shape)
 # This can be from 0 to 19. There are 20 labels.
 label_number = 0
 
+#We used grid search to pick the best parameters for Gradient Boosting Parameters. We have learning rate=0.1 and max_depth=5 
+#as the best parameters for the gradient boosting algorithm. Thus, I commented out codes related to grid search. 
 # Grid Search
-params = {'learning_rate': [0.05, 0.1],
-          'max_depth': [3, 5]
-          }
+#params = {'learning_rate': [0.01, 0.05 0.1],
+         # 'max_depth': [3,5]
+          #}
 
-clf = xgb.XGBClassifier()
+clf = xgb.XGBClassifier(learning_rate=0.1, max_depth=5)
 
-cv = GridSearchCV(clf, params, cv = 2, scoring = "accuracy", n_jobs = -1, verbose = 2)
+#cv = GridSearchCV(clf, params, cv = 10, scoring = "f1", n_jobs = -1, verbose = 2)
 
-cv.fit(train_sentence_features, train_labels[:, label_number])
+clf.fit(train_sentence_features, train_labels[:, label_number])
 
-predict = cv.predict(val_sentence_features)
-print("Accuracy rate: ", sum(predict==val_labels[:, label_number])/val_labels.shape[0])
+predict = clf.predict(val_sentence_features)
+#print("Accuracy rate: ", sum(predict==val_labels[:, label_number])/val_labels.shape[0])
 
-predict = cv.predict(test_sentence_features)
-print("Accuracy rate: ", sum(predict==test_labels[:, label_number])/test_labels.shape[0])
+print("Accuracy rate val: ", label_number, sum(predict==val_labels[:, label_number])/val_labels.shape[0])
 
-print(cv.best_estimator_)
-print(cv.best_params_)
+f1_val=f1_score(val_labels[:, label_number], predict, average='weighted', labels=np.unique(predict))
+print("F1 score val:", label_number, f1_val)
+
+predict = clf.predict(test_sentence_features)
+# print("Accuracy rate: ", sum(predict==test_labels[:, label_number])/test_labels.shape[0])
+
+print("Accuracy rate test: ", label_number, sum(predict==test_labels[:, label_number])/test_labels.shape[0])
+
+f1_test=f1_score(test_labels[:, label_number], predict, average='weighted', labels=np.unique(predict))
+print("F1 score test:", label_number, f1_test)
+
+#print(cv.best_estimator_)
+#print(cv.best_params_)
 
 
-best_param = {'learning_rate': cv.best_estimator_.learning_rate,
-              'max_depth': cv.best_estimator_.max_depth
-              }
+#best_param = {'learning_rate': cv.best_estimator_.learning_rate,
+              #'max_depth': cv.best_estimator_.max_depth
+              #}
 
 
-dtrain = xgb.DMatrix(np.array(train_sentence_features), label= train_labels[:, label_number])
-num_round = 10
-bst = xgb.train(best_param, dtrain, num_round)
+#dtrain = xgb.DMatrix(np.array(train_sentence_features), label= train_labels[:, label_number])
+#num_round = 10
+#bst = xgb.train(best_param, dtrain, num_round)
 
-dtest_x = xgb.DMatrix(np.array(val_sentence_features))
-predict = bst.predict(dtest_x)
-total_num = val_labels[:, label_number].shape[0]
-score = 0
-for i, v in enumerate(predict):
-    if np.argmax(v) == val_labels[i]:
-        score += 1
-print("accuracy is {acc}".format(acc = score/total_num))
+#dtest_x = xgb.DMatrix(np.array(val_sentence_features))
+#predict = bst.predict(dtest_x)
+#total_num = val_labels[:, label_number].shape[0]
+
+#score = 0
+#for i, v in enumerate(predict):
+    #if np.argmax(v) == val_labels[i, label_number]:
+        #score += 1
+#print("accuracy is {acc}".format(acc = score/total_num))
+
+
+
+
+
+
+
 
